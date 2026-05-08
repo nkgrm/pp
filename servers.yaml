@@ -1,6 +1,6 @@
 ---
 - name: Setup Angie Web Servers
-  hosts: servers
+  hosts: server
   become: yes
   tasks:
     - name: Update package cache
