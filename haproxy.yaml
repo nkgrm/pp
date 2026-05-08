@@ -53,7 +53,7 @@
 
           backend web_servers
               balance roundrobin
-              {% for host in groups['servers'] %}
+              {% for host in groups['server'] %}
               server {{ host }} {{ host }}:80 check
               {% endfor %}
 
