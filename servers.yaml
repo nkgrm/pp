@@ -1,0 +1,26 @@
+---
+- name: Setup Angie Web Servers
+  hosts: servers
+  become: yes
+  tasks:
+    - name: Update package cache
+      shell: apt-get update
+      changed_when: false
+
+    - name: Install Angie
+      package:
+        name: angie
+        state: present
+
+    - name: Create index.html with server name
+      copy:
+        dest: /var/www/html/index.html
+        content: "{{ inventory_hostname }} by Angie!\n"
+        mode: '0644'
+      # Это обеспечит статус OK при повторном запуске, если имя не менялось
+
+    - name: Ensure Angie is started and enabled
+      service:
+        name: angie
+        state: started
+        enabled: yes
