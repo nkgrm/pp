@@ -1,0 +1,84 @@
+---
+- name: Configure Proxy Nodes (Keepalived + HAProxy)
+  hosts: proxy
+  become: yes
+  tasks:
+    - name: Update apt cache
+      shell: apt-get update
+      changed_when: false
+
+    - name: Install Keepalived and HAProxy
+      package:
+        name:
+          - keepalived
+          - haproxy
+        state: present
+
+    # --- Настройка Keepalived ---
+    - name: Configure Keepalived
+      copy:
+        dest: /etc/keepalived/keepalived.conf
+        content: |
+          vrrp_instance VI_1 {
+              state {{ 'MASTER' if inventory_hostname == 'ha1-cod' else 'BACKUP' }}
+              interface eth0
+              virtual_router_id 51
+              priority {{ 100 if inventory_hostname == 'ha1-cod' else 50 }}
+              advert_int 1
+              virtual_ipaddress {
+                  172.16.1.253/23
+              }
+          }
+      notify: Restart keepalived
+
+    # --- Настройка HAProxy ---
+    - name: Configure HAProxy
+      copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+              daemon
+              user haproxy
+              group haproxy
+
+          defaults
+              mode http
+              timeout connect 5000ms
+              timeout client 50000ms
+              timeout server 50000ms
+
+          frontend main
+              bind *:80
+              default_backend web_servers
+
+          backend web_servers
+              balance roundrobin
+              {% for host in groups['servers'] %}
+              server {{ host }} {{ host }}:80 check
+              {% endfor %}
+
+          listen stats
+              bind *:9000
+              stats enable
+              stats uri /haproxy_stats
+      notify: Restart haproxy
+
+    - name: Ensure services are started
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - keepalived
+        - haproxy
+
+  handlers:
+    - name: Restart keepalived
+      service:
+        name: keepalived
+        state: restarted
+
+    - name: Restart haproxy
+      service:
+        name: haproxy
+        state: restarted
