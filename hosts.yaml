@@ -1,6 +1,6 @@
 all:
   children:
-    servers:
+    server:
       hosts:
         srv1-cod:
           ansible_host: 172.16.1.1
