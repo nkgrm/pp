@@ -56,35 +56,53 @@
         home: /var/lib/haproxy
 
     - name: Configure HAProxy
-      copy:
+      ansible.builtin.template:
         dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: '0644'
+        validate: 'haproxy -c -f %s'
         content: |
           global
               daemon
               user haproxy
               group haproxy
+              chroot /var/lib/haproxy
+              log /dev/log local0
+              ssl-default-bind-ciphers PROFILE=SYSTEM
 
           defaults
               mode http
+              log global
+              option httplog
               timeout connect 5000ms
               timeout client 50000ms
               timeout server 50000ms
 
-          frontend main
-              bind *:80
+          frontend http_front
+              bind 172.16.1.253:80
+              http-request redirect scheme https code 301 unless { ssl_fc }
+
+          frontend https_front
+              bind 172.16.1.253:443 ssl crt /etc/haproxy/certs/www.au.team.pem
+              option forwardfor
+              http-request set-header X-Forwarded-Proto https
               default_backend web_servers
 
           backend web_servers
               balance roundrobin
+              option httpchk GET /
               {% for host in groups['server'] %}
-              server {{ host }} {{ host }}:80 check
+              server {{ host }} {{ host }}:80 check inter 2s rise 2 fall 3
               {% endfor %}
 
           listen stats
-              bind *:9000
+              bind 172.16.1.253:9000
               stats enable
               stats uri /haproxy_stats
+              stats refresh 5s
       notify: Restart haproxy
+
 
     - name: Ensure services are started
       service:
