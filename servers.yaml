@@ -14,7 +14,7 @@
 
     - name: Create index.html with server name
       copy:
-        dest: /var/www/html/index.html
+        dest: /usr/share/angie/html/index.html
         content: "{{ inventory_hostname }} by Angie!\n"
         mode: '0644'
       # Это обеспечит статус OK при повторном запуске, если имя не менялось
