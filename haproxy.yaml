@@ -107,6 +107,16 @@
               stats uri /haproxy_stats
               stats refresh 5s
       notify: Restart haproxy
+      
+    - name: copy certificate
+      copy:
+        src: /home/user/rootCA.crt
+        dest: /etc/pki/ca-trust/source/anchors/rootCA.crt
+        owner: root
+        group: root
+        mode: 0644
+    - name: Update certs
+      shell: update-ca-trust
 
 
     - name: Ensure services are started
