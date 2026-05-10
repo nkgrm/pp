@@ -37,7 +37,12 @@
         line: "nameserver 10.1.1.10"
         create: yes
         mode: '0644'
-
+        
+    - name: Ensure certs directory exists
+      ansible.builtin.file:
+        path: /etc/haproxy/certs
+        state: directory
+        mode: '0700'
     # --- Настройка HAProxy ---
     - name: Ensure group "haproxy" exists
       ansible.builtin.group:
