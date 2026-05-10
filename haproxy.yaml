@@ -61,12 +61,8 @@
         home: /var/lib/haproxy
 
     - name: Configure HAProxy
-      ansible.builtin.template:
+      copy:
         dest: /etc/haproxy/haproxy.cfg
-        owner: root
-        group: root
-        mode: '0644'
-        validate: 'haproxy -c -f %s'
         content: |
           global
               daemon
@@ -92,6 +88,9 @@
               bind 172.16.1.253:443 ssl crt /etc/haproxy/certs/haproxy.pem
               option forwardfor
               http-request set-header X-Forwarded-Proto https
+              stats enable
+              stats uri /haproxy_stats
+              stats refresh 5s
               default_backend web_servers
 
           backend web_servers
@@ -101,11 +100,6 @@
               server {{ host }} {{ host }}:80 check inter 2s rise 2 fall 3
               {% endfor %}
 
-          listen stats
-              bind 172.16.1.253:9000
-              stats enable
-              stats uri /haproxy_stats
-              stats refresh 5s
       notify: Restart haproxy
       
     - name: copy certificate
