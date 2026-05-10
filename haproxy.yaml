@@ -102,6 +102,14 @@
               stats enable
               stats uri /haproxy_stats
               stats refresh 5s
+              default_backend web_servers
+
+          backend web_servers
+              balance roundrobin
+              option httpchk GET /
+              {% for host in groups['server'] %}
+              server {{ host }} {{ host }}:80 check inter 2s rise 2 fall 3
+              {% endfor %}
 
       notify: Restart haproxy
       
