@@ -21,7 +21,7 @@
         content: |
           vrrp_instance VI_1 {
               state {{ 'MASTER' if inventory_hostname == 'ha1-cod' else 'BACKUP' }}
-              interface eth0
+              interface ens18
               virtual_router_id 51
               priority {{ 100 if inventory_hostname == 'ha1-cod' else 50 }}
               advert_int 1
@@ -32,6 +32,22 @@
       notify: Restart keepalived
 
     # --- Настройка HAProxy ---
+    - name: Ensure group "haproxy" exists
+      ansible.builtin.group:
+        name: haproxy
+        state: present
+        system: yes
+
+    - name: Ensure user "haproxy" exists
+      ansible.builtin.user:
+        name: haproxy
+        group: haproxy
+        state: present
+        system: yes
+        shell: /bin/false
+        create_home: no
+        home: /var/lib/haproxy
+
     - name: Configure HAProxy
       copy:
         dest: /etc/haproxy/haproxy.cfg
