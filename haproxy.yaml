@@ -84,7 +84,7 @@
               http-request redirect scheme https code 301 unless { ssl_fc }
 
           frontend https_front
-              bind 172.16.1.253:443 ssl crt /etc/haproxy/certs/www.au.team.pem
+              bind 172.16.1.253:443 ssl crt /etc/haproxy/certs/haproxy.pem
               option forwardfor
               http-request set-header X-Forwarded-Proto https
               default_backend web_servers
