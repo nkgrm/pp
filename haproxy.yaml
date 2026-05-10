@@ -31,6 +31,13 @@
           }
       notify: Restart keepalived
 
+    - name: Добавление dns-сервера
+      ansible.builtin.lineinfile:
+        path: /etc/net/ifaces/ens18/resolv.conf
+        line: "nameserver 10.1.1.10"
+        create: yes
+        mode: '0644'
+
     # --- Настройка HAProxy ---
     - name: Ensure group "haproxy" exists
       ansible.builtin.group:
