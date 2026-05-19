@@ -10,7 +10,7 @@
       - dhcp-relay
       - nftables
       - rsyslog
-      - chronyd
+      - chrony
   tasks:
     - name: Сбор фактов о сервисах
       ansible.builtin.service_facts:
