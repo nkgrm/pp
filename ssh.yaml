@@ -1,0 +1,81 @@
+---
+- name: Полная настройка нового сервера
+  hosts: all
+  become: yes
+  vars:
+    # --- Блок настроек пользователя ---
+    username: "sshuser"
+    admin_group: "wheel"
+    passwd: "P@ssw0rd" 
+    # Локальный пользователь, запускающий плейбук
+    local_user: "{{ lookup('env', 'USER') }}"
+    # Путь к ключу
+    ssh_key_path: "~/.ssh/id_ed25519"
+
+  tasks:
+    - name: Мгновенное переключение SELinux в Permissive
+      shell: setenforce 0
+      failed_when: false
+
+    - name: Постоянное отключение SELinux в конфиге
+      selinux:
+        state: disabled
+
+    - name: Создание группы и пользователя
+      user:
+        name: "{{ username }}"
+        groups: "{{ admin_group }}"
+        append: yes
+        password: "{{ passwd | password_hash('sha512') }}"
+        shell: /bin/bash
+        create_home: yes
+        state: present
+
+    - name: Настройка sudo без пароля для нового пользователя
+      lineinfile:
+        path: "/etc/sudoers.d/{{ username }}"
+        line: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+        create: yes
+        mode: '0440'
+
+    - name: Генерация SSH-ключа на локальной машине
+      delegate_to: localhost
+      run_once: true
+      become: no
+      openssh_keypair:
+        path: "{{ ssh_key_path }}"
+        type: ed25519
+        state: present
+        owner: "{{ local_user }}"
+        mode: '0600'
+
+    - name: Добавление ключа самому себе (localhost)
+      authorized_key:
+        user: "{{ local_user }}"
+        state: present
+        key: "{{ lookup('file', ssh_key_path + '.pub') }}"
+      delegate_to: localhost
+      become: no
+
+    - name: Добавление вашего SSH-ключа на удаленный сервер
+      authorized_key:
+        user: "{{ username }}"
+        state: present
+        key: "{{ lookup('file', ssh_key_path + '.pub') }}"
+
+    - name: Настройка параметров SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: "^#?PasswordAuthentication", line: "PasswordAuthentication no" }
+        - { regexp: "^#?PermitRootLogin", line: "PermitRootLogin no" }
+      notify: Restart SSH
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: sshd
+        state: restarted
