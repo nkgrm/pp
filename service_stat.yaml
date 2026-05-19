@@ -1,8 +1,9 @@
 ---
 - name: Сбор информации и проверка сервисов
-  hosts: all
-  gather_facts: true
+  hosts: all            # Сценарий выполняется для всех хостов из inventory-файла
+  gather_facts: true    # Обязательный сбор системных фактов (нужен для получения FQDN)
   vars:
+    # Список сервисов, состояние которых мы хотим проверить на удаленных узлах
     required_services:
       - pdns
       - pdns-recursor
@@ -10,18 +11,22 @@
       - dhcp-relay
       - nftables
       - rsyslog
-      - chrony
+      - chronyd
   tasks:
+    # Шаг 1: Автоматический сбор информации обо всех установленных в системе службах (systemd/init)
     - name: Сбор фактов о сервисах
       ansible.builtin.service_facts:
 
+    # Шаг 2: Формирование одного общего текстового отчета
+    # Используем copy + content, чтобы динамически генерировать текст через встроенный движок Jinja2
     - name: Генерация итогового отчета на управляющем узле
-      delegate_to: localhost
-      run_once: true
+      delegate_to: localhost # Выполняем задачу локально на сервере Ansible (не на целевых хостах)
+      run_once: true         # Запускаем задачу ровно 1 раз для всего сценария, а не для каждого хоста
       ansible.builtin.copy:
-        dest: /etc/ansible/otchet
+        dest: /etc/ansible/otchet  # Путь, куда запишется готовый файл отчета
         content: |
           Имена устройств согласно списка
+          {# Цикл перебирает все хосты из инвентаря, чтобы вывести их имена и FQDN #}
           {% for host in groups['all'] %}
           {{ hostvars[host]['inventory_hostname'] }} - {{ hostvars[host]['ansible_facts']['fqdn'] | default('localhost') }}
           {% endfor %}
@@ -29,15 +34,19 @@
           ##########
 
           Статусы сервисов
+          {# Вложенный цикл: сначала берем хост, затем проверяем для него каждый сервис из списка required_services #}
           {% for host in groups['all'] %}
           {% for service in required_services %}
+          {# Создаем техническое имя сервиса (например, 'pdns.service') для поиска в системных фактах #}
           {% set s_name = service + '.service' %}
+          {# Проверяем, существует ли такой сервис в операционной системе хоста #}
           {% if s_name in hostvars[host]['ansible_facts']['services'] %}
+          {# Если сервис найден, выводим его текущее состояние (running/stopped) и статус (enabled/disabled) #}
           {{ service }} на {{ host }} - статус `{{ hostvars[host]['ansible_facts']['services'][s_name]['state'] }} ({{ hostvars[host]['ansible_facts']['services'][s_name]['status'] }})`
           {% else %}
+          {# Если сервиса вообще нет в системе, пишем статус not-found #}
           {{ service }} на {{ host }} - статус `not-found`
           {% endif %}
           {% endfor %}
           {% endfor %}
-        mode: '0644'
-
+        mode: '0644' # Выставляем стандартные права на файл (чтение для всех, запись для владельца)
